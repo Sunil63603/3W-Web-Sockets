@@ -4,9 +4,13 @@
 import express from "express"; //express framework
 import cors from "cors"; //For handling Cross-origin requests
 import dotenv from "dotenv"; //to load variables from .env
+import http from "http"; //create HTTP server manually
 
 //import custom MongoDB connection function
 import connectDB from "./config/db.js";
+
+//import Socket.io setup
+import initializeSocket from "./socket/socketServer.js";
 
 //Load environment variables from .env file
 dotenv.config();
@@ -30,8 +34,14 @@ app.use(express.json());
 //Connect to MongoDB using connectDB()
 connectDB();
 
+//Create HTTP server and attach Express app to it.
+const httpServer = http.createServer(app);
+
+//Initialize and configure Socket.io
+initializeSocket(httpServer);
+
 //start listening on port 5000
 const PORT = process.env.BACKEND_PORT || 5000;
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`🚀server is running on port ${PORT}`);
 });

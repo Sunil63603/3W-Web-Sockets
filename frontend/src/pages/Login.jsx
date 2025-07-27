@@ -8,7 +8,7 @@ import { TextField, Button, Container, Typography, Box } from "@mui/material";
 //Bootstrap imports
 import "bootstrap/dist/css/bootstrap.min.css";
 
-//why is this component receiving this 'setUserName'. Where is it receiving from? why not contextAPI ?
+//❌why is this component receiving this 'setUserName'. Where is it receiving from? why not contextAPI ?
 const Login = ({ setUserName }) => {
   const [inputName, setInputName] = useState(""); //store form input.
   const navigate = useNavigate(); //for navigation
@@ -42,7 +42,7 @@ const Login = ({ setUserName }) => {
           className="mb-3"
         />
         <Button fullWidth type="submit" variant="contained" colors="primary">
-          Join chat
+          Login
         </Button>
       </Box>
     </Container>
