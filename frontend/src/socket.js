@@ -7,7 +7,9 @@ import { io } from "socket.io-client"; //io method which creates socket instance
 const SOCKET_SERVER_URL =
   process.env.NODE_ENV === "production"
     ? undefined
-    : `${process.env.BACKEND_URL}`;
+    : `${process.env.REACT_APP_BACKEND_URL}`;
+
+console.log(process.env.REACT_APP_BACKEND_URL);
 
 //create a Socket.io client instance but dont connect immediately
 //autoConnect:false ensures that connection happens manually after userName is available.

@@ -1,4 +1,4 @@
-import User from "../models/User"; //Import User model to interact with DB.
+import User from "../models/User.js"; //Import User model to interact with DB.
 
 //In-memory map to store online users:userId -> socketId.
 //stored in RAM allow for faster lookup and updates.
@@ -24,6 +24,9 @@ const socketHandler = (io) => {
           //❌ User doesnot exist:create new
           user = await User.create({ userName, socketId: socket.id });
         }
+
+        //Save userId on socket instance for use during disconnect.
+        socket.data.userId = user._id.toString();
 
         //Store userId->socketId mapping in memory
         onlineUsers.set(user._id.toString(), socket.id);
@@ -58,7 +61,38 @@ const socketHandler = (io) => {
       }
     });
 
-    //Disconnect handler will go here later(4.5)
+    //DISCONNECT EVENT - called when socket connection closes
+    socket.on("disconnect", async () => {
+      const userId = socket.data.userId; //Retrieve  userId saved earlier while user logged-in(REGISTER event).
+
+      if (!userId) return; //If no user was registered,skip.
+
+      console.log(`🔴Socket disconnected: ${socket.id} (userId:${userId})`);
+
+      //Remove from in-memory map
+      onlineUsers.delete(userId);
+
+      //set socketId to null in DB.
+      await User.findByIdAndUpdate(userId, { socketId: null });
+
+      //Broadcast updated online users list to all clients
+      const onlineUserList = [];
+      for (const [userId, sockId] of onlineUsers.entries()) {
+        //'u' because to avoid naming conflict with 'user' variable.
+        const u = await User.findById(userId);
+        if (u) onlineUserList.push({ userId, userName: u.userName });
+      }
+
+      //io.emit()-send to all connected clients(not just currentUser)
+      io.emit("users:update", onlineUserList);
+      //use socket.broadcast.emit()-send to all clients except sender.
+
+      //Debug lo after disconnect
+      console.log(`Updated Online Users Map:`);
+      for (const [id, sock] of onlineUsers.entries()) {
+        console.log(`${id}->${sock}`);
+      }
+    });
   });
 };
 

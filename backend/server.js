@@ -12,6 +12,9 @@ import connectDB from "./config/db.js";
 //import Socket.io setup
 import initializeSocket from "./socket/socketServer.js";
 
+//route imports
+import roomRoutes from "./routes/roomRoutes.js"; //Room-related API routes
+
 //Load environment variables from .env file
 dotenv.config();
 
@@ -33,6 +36,9 @@ app.use(express.json());
 
 //Connect to MongoDB using connectDB()
 connectDB();
+
+//Register room-related API endpoints.
+app.use("/api/rooms", roomRoutes);
 
 //Create HTTP server and attach Express app to it.
 const httpServer = http.createServer(app);

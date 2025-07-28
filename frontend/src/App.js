@@ -17,6 +17,7 @@ const App = () => {
   useEffect(() => {
     const stored = localStorage.getItem("userName");
     if (stored) setUserName(stored);
+    else setUserName("");
   }, []);
 
   return (
@@ -42,7 +43,7 @@ const App = () => {
           path="/chat"
           element={
             userName ? (
-              <Chat userName={userName} />
+              <Chat userName={userName} setUserName={setUserName} />
             ) : (
               <Navigate to="/login" replace />
             )
