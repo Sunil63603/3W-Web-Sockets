@@ -57,7 +57,7 @@ const socketHandler = (io) => {
         }
 
         //io.emit()-send to all connected clients(not just currentUser)
-        io.emit("users:update", onlineUserList);
+        io.emit("onlineUsers", onlineUserList);
         //use socket.broadcast.emit()-send to all clients except sender.
       } catch (error) {
         console.error("❌Error in register event:", error.message);
@@ -88,7 +88,7 @@ const socketHandler = (io) => {
       }
 
       //io.emit()-send to all connected clients(not just currentUser)
-      io.emit("users:update", onlineUserList);
+      io.emit("onlineUsers", onlineUserList);
       //use socket.broadcast.emit()-send to all clients except sender.
 
       //Debug lo after disconnect

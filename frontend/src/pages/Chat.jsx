@@ -26,20 +26,32 @@ import { socket } from "../socket.js";
 
 import axios from "axios";
 
+//component imports
+import AllRoomsList from "../components/AllRoomsList.jsx";
+
+//context imports
+import { useChat } from "../context/ChatContext.js";
+
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
 //❌receives userName from App.js. Move this to context.
 const Chat = ({ userName, setUserName }) => {
   const navigate = useNavigate(); //navigate back to login-page on clicking log-out button
 
-  const [onlineUsers, setOnlineUsers] = useState([]); //stores all online users received from server.
-  const [selectedUserId, setSelectedUserId] = useState(""); //selected userId from dropdown
-
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [activeRoomId, setActiveRoomId] = useState(null);
-
-  const [messages, setMessages] = useState([]); //messages of active chat Room.
-  const [messageInput, setMessageInput] = useState(""); //controlled element
+  const {
+    onlineUsers,
+    setOnlineUsers,
+    selectedUserId,
+    setSelectedUserId,
+    selectedUser,
+    setSelectedUser,
+    activeRoomId,
+    setActiveRoomId,
+    messages,
+    setMessages,
+    messageInput,
+    setMessageInput,
+  } = useChat();
 
   //Ref to scroll to bottom in Chat interface when messages overflow.
   const messagesEndRef = useRef(null); //Ref to scroll to bottom.
@@ -55,13 +67,13 @@ const Chat = ({ userName, setUserName }) => {
     //backend can identify the user, update their socketId and track them as online
 
     //Listen for users:update event(updated onlineUsers)
-    socket.on("users:update", (userList) => {
+    socket.on("onlineUsers", (userList) => {
       setOnlineUsers(userList); //Update online users list from backend
     });
 
     //Clean up socket on component unmount
     return () => {
-      socket.off("users:update");
+      socket.off("onlineUsers");
       socket.disconnect(); //backend will remove user from 'online' users and broadcast.
     };
   }, [userName]); //when userName changes
@@ -222,12 +234,21 @@ const Chat = ({ userName, setUserName }) => {
       {/*Whatsapp-style layout*/}
       <Box sx={{ display: "flex", gap: 2, mt: 2, height: "70vh" }}>
         {/*Left Column:Chat Rooms sidebar - 30% width*/}
-        <Box sx={{ width: "30%" }}>
-          <Paper elevation={3} sx={{ height: "100%", p: 2 }}>
+        <Box sx={{ width: "30%", flexShrink: 0 }}>
+          <Paper
+            elevation={3}
+            sx={{
+              height: "100%",
+              p: 2,
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
             <Typography variant="h6">Chats</Typography>
-            <Typography variant="body2" color="text.secondary">
-              (Chat List coming soon)
-            </Typography>
+            {/* Scrollable AllRoomsList */}
+            <Box sx={{ flex: 1, overflowY: "auto", mt: 2 }}>
+              <AllRoomsList></AllRoomsList>
+            </Box>
           </Paper>
         </Box>
 

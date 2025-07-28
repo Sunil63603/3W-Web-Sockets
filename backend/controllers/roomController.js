@@ -28,3 +28,46 @@ export const findExistingRoom = async (req, res) => {
     res.status(500).json({ message: `Server Error` });
   }
 };
+
+//controller to create a new 1-1 room.
+export const createRoom = async (req, res) => {
+  try {
+    const { participants } = req.body;
+
+    //expect exactly 2 userIds
+    if (!Array.isArray(participants) || participants.length !== 2) {
+      return res
+        .status(400)
+        .json({ message: `Exactly 2 participants required` });
+    }
+
+    //Create a room document with isGroup:false and lastActivityAt:now
+    const newRoom = new Room({
+      participants,
+      isGroup: false,
+      grpName: null, //if grpName is null display 'selectedUser's name at the top of chat UI
+      lastActivityAt: Date.now(),
+    });
+
+    await newRoom.save();
+
+    //Respond.with the newly created room ID only
+    return res.status(201).json({ roomId: newRoom._id });
+  } catch (error) {
+    return res.status(500).json({ message: `Server Error` });
+  }
+};
+
+//controller to fetch all chat rooms, sorted by lastActivityAt
+export const getAllRooms = async (req, res) => {
+  try {
+    //fetch all rooms and sort them by lastActivityAt descending(most recent first).
+    const rooms = await Room.find({}).sort({ lastActivityAt: -1 }); //-1=descending order
+
+    //return full room objects (including _id,participants,etc)
+    return res.status(200).json(rooms);
+  } catch (error) {
+    console.error(`Error fetching rooms:`, error.message);
+    return res.status(500).json({ message: `Server Error` });
+  }
+};
