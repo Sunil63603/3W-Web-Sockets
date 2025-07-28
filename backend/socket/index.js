@@ -1,4 +1,5 @@
 import User from "../models/User.js"; //Import User model to interact with DB.
+import Room from "../models/Room.js";
 
 //In-memory map to store online users:userId -> socketId.
 //stored in RAM allow for faster lookup and updates.
@@ -62,6 +63,39 @@ const socketHandler = (io) => {
       } catch (error) {
         console.error("❌Error in register event:", error.message);
         socket.emit("register:error", { message: "Registration Failed" });
+      }
+    });
+
+    //Join a room:for group rooms only.
+    socket.on("joinRoom", async ({ roomId, userId, isGroup }) => {
+      try {
+        //Always join the socket.io room by roomId
+        socket.join(roomId);
+
+        //If not a group room,just confirm join(no DB update).
+        if (!isGroup) {
+          socket.emit("room:joined", { roomId, message: `joined (1-1) room` });
+          return;
+        }
+
+        //find room by ID
+        const room = await Room.findById(roomId);
+        if (!room) {
+          socket.emit("room:joined", { roomId, message: "Room not found" });
+          return;
+        }
+
+        //If user already in participants, do not modify DB.
+        if (room.participants.includes(userId)) {
+          socket.emit("room:joined", { roomId, message: "Already joined" });
+        } else {
+          //Otherwise, add user to participants and save
+          room.participants.push(userId);
+          await room.save();
+          socket.emit("room:joined", { roomId, message: "Join failed" });
+        }
+      } catch (error) {
+        socket.emit("room:joined", { roomId, message: "Join failed" });
       }
     });
 
