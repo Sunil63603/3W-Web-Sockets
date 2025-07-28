@@ -22,7 +22,11 @@ const socketHandler = (io) => {
           await user.save();
         } else {
           //❌ User doesnot exist:create new
-          user = await User.create({ userName, socketId: socket.id });
+          user = await User.create({
+            userName,
+            socketId: socket.id,
+            password: "",
+          });
         }
 
         //Save userId on socket instance for use during disconnect.

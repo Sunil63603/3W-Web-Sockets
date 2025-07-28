@@ -15,7 +15,6 @@ import {
   MenuItem,
   Avatar,
   Stack,
-  Grid,
   TextField,
   IconButton,
   Paper,
@@ -26,6 +25,8 @@ import { Send } from "@mui/icons-material";
 import { socket } from "../socket.js";
 
 import axios from "axios";
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
 //❌receives userName from App.js. Move this to context.
 const Chat = ({ userName, setUserName }) => {
@@ -94,7 +95,7 @@ const Chat = ({ userName, setUserName }) => {
       const myUserId = onlineUsers.find((u) => u.userName === userName)?.userId;
 
       //call backend to check if room already exists between current user and selected user.
-      const res = await axios.get(`/api/rooms/existing`, {
+      const res = await axios.get(`${BACKEND_URL}/api/rooms/existing`, {
         params: { user1: myUserId, user2: targetUserId },
       });
 
@@ -105,7 +106,7 @@ const Chat = ({ userName, setUserName }) => {
 
         //fetch message history
         const msgRes = await axios.get(
-          `/api/messages?roomId=${res.data.roomId}`
+          `${BACKEND_URL}/api/messages?roomId=${res.data.roomId}`
         );
         setMessages(msgRes.data || []);
       } else {
@@ -120,6 +121,39 @@ const Chat = ({ userName, setUserName }) => {
 
   const handleSendMessage = async () => {
     if (!messageInput.trim()) return;
+
+    let roomId = activeRoomId;
+    const myUserId = onlineUsers.find((u) => u.userName === userName)?.userId;
+
+    //Create room if it doesnt exist yet.
+    if (!roomId) {
+      try {
+        const res = await axios.post(`${BACKEND_URL}/api/rooms/create`, {
+          participants: [myUserId, selectedUserId],
+        });
+
+        roomId = res.data.roomId;
+        setActiveRoomId(roomId);
+        socket.emit("joinRoom", roomId);
+      } catch (error) {
+        console.log(`Room creation failed:`, error.message);
+        return;
+      }
+    }
+
+    //emit message to socket
+    const message = {
+      roomId,
+      sender: myUserId,
+      content: messageInput,
+      timestamp: new Date().toISOString(),
+    };
+
+    socket.emit("chatMessage", message);
+
+    //optimistically update local message list
+    setMessages((prev) => [...prev, message]);
+    setMessageInput("");
   };
 
   return (
@@ -185,22 +219,97 @@ const Chat = ({ userName, setUserName }) => {
         </FormControl>
       </Box>
 
-      {selectedUser && (
-        <Box className="p-3">
-          <Typography variant="h6">
-            Chat with : {selectedUser.userName}
-          </Typography>
-          {activeRoomId ? (
-            <Typography variant="body2" color="green">
-              ✅Joined Room : {activeRoomId}
+      {/*Whatsapp-style layout*/}
+      <Box sx={{ display: "flex", gap: 2, mt: 2, height: "70vh" }}>
+        {/*Left Column:Chat Rooms sidebar - 30% width*/}
+        <Box sx={{ width: "30%" }}>
+          <Paper elevation={3} sx={{ height: "100%", p: 2 }}>
+            <Typography variant="h6">Chats</Typography>
+            <Typography variant="body2" color="text.secondary">
+              (Chat List coming soon)
             </Typography>
-          ) : (
-            <Typography variant="body2" color="gray">
-              No room yet.Start chatting to create one.
-            </Typography>
-          )}
+          </Paper>
         </Box>
-      )}
+
+        {/* Right Column:Chat UI - 70% width */}
+        <Box sx={{ width: "70%" }}>
+          <Paper
+            elevation={3}
+            sx={{ height: "100%", display: "flex", flexDirection: "column" }}
+          >
+            {selectedUser ? (
+              <>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 2,
+                    p: 2,
+                    borderBottom: "1px solid #ddd",
+                  }}
+                >
+                  <Avatar>
+                    {selectedUser.userName.charAt(0).toUpperCase()}
+                  </Avatar>
+                  <Typography variant="h6">{selectedUser.userName}</Typography>
+                </Box>
+
+                <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
+                  {messages.length > 0 ? (
+                    messages.map((msg, idx) => (
+                      <Typography key={idx} variant="body2" gutterBottom>
+                        <strong>
+                          {msg.sender ===
+                          onlineUsers.find((u) => u.userName === userName)
+                            ?.userId
+                            ? "Me"
+                            : selectedUser.userName}
+                          :
+                        </strong>{" "}
+                        {msg.content}
+                      </Typography>
+                    ))
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      Start chatting with {selectedUser.userName}
+                    </Typography>
+                  )}
+                  <div ref={messagesEndRef}></div>
+                </Box>
+
+                <Box
+                  sx={{
+                    display: "flex",
+                    gap: 2,
+                    p: 2,
+                    borderTop: "1px solid #ddd",
+                  }}
+                >
+                  <TextField
+                    fullWidth
+                    multiline
+                    placeholder="Type your message..."
+                    value={messageInput}
+                    onChange={(e) => setMessageInput(e.target.value)}
+                  ></TextField>
+                  <IconButton color="primary" onClick={handleSendMessage}>
+                    <Send />
+                  </IconButton>
+                </Box>
+              </>
+            ) : (
+              <Box
+                sx={{ height: "100%" }}
+                className="d-flex justify-content-center align-items-center"
+              >
+                <Typography variant="body1" color="text.secondary">
+                  Select a user to start chatting
+                </Typography>
+              </Box>
+            )}
+          </Paper>
+        </Box>
+      </Box>
     </>
   );
 };
