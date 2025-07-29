@@ -1,5 +1,5 @@
 //React imports
-import React, { useState, useRef, useEffect } from "react"; //useEffect-whenever userName changes-->connect to socket-->emit register event-->disconnect socket
+import React, { useRef, useEffect } from "react"; //useEffect-whenever userName changes-->connect to socket-->emit register event-->disconnect socket
 import { useNavigate } from "react-router-dom"; //on log-out, redirect user back to login page
 
 //MUI imports
@@ -19,7 +19,6 @@ import {
   IconButton,
   Paper,
 } from "@mui/material";
-import { Send } from "@mui/icons-material";
 
 //socket.io-client instance from socket.js file
 import { socket } from "../socket.js";
@@ -31,6 +30,7 @@ import AllRoomsList from "../components/AllRoomsList.jsx";
 
 //context imports
 import { useChat } from "../context/ChatContext.js";
+import { RightChatUI } from "../components/RightChatUI.jsx";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -43,18 +43,13 @@ const Chat = ({ userName, setUserName }) => {
     setOnlineUsers,
     selectedUserId,
     setSelectedUserId,
-    selectedUser,
     setSelectedUser,
-    activeRoomId,
     setActiveRoomId,
-    messages,
     setMessages,
-    messageInput,
     setMessageInput,
+    roomDetails,
+    setRoomDetails,
   } = useChat();
-
-  //Ref to scroll to bottom in Chat interface when messages overflow.
-  const messagesEndRef = useRef(null); //Ref to scroll to bottom.
 
   useEffect(() => {
     //connect to socket server
@@ -66,7 +61,7 @@ const Chat = ({ userName, setUserName }) => {
     socket.emit("register", { userName });
     //backend can identify the user, update their socketId and track them as online
 
-    //Listen for users:update event(updated onlineUsers)
+    //Listen for onlineUsers event(updated onlineUsers)
     socket.on("onlineUsers", (userList) => {
       setOnlineUsers(userList); //Update online users list from backend
     });
@@ -77,11 +72,6 @@ const Chat = ({ userName, setUserName }) => {
       socket.disconnect(); //backend will remove user from 'online' users and broadcast.
     };
   }, [userName]); //when userName changes
-
-  //Auto-scroll to bottom when messages change.
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
 
   //Logout handler:clear storage,disconnect socket,redirect
   const handleLogout = () => {
@@ -94,6 +84,7 @@ const Chat = ({ userName, setUserName }) => {
   //handle selecting a user from active online users dropdown.
   const handleSelectUser = async (targetUserId) => {
     setSelectedUserId(targetUserId); //update local state for dropdown.
+    setRoomDetails(null);
 
     //Find full user Object from online users List.
     const user = onlineUsers.find((u) => u.userId === targetUserId);
@@ -129,43 +120,6 @@ const Chat = ({ userName, setUserName }) => {
       console.log(`Room not found or error:`, error.message);
       setActiveRoomId(null); //fallback in case of failure
     }
-  };
-
-  const handleSendMessage = async () => {
-    if (!messageInput.trim()) return;
-
-    let roomId = activeRoomId;
-    const myUserId = onlineUsers.find((u) => u.userName === userName)?.userId;
-
-    //Create room if it doesnt exist yet.
-    if (!roomId) {
-      try {
-        const res = await axios.post(`${BACKEND_URL}/api/rooms/create`, {
-          participants: [myUserId, selectedUserId],
-        });
-
-        roomId = res.data.roomId;
-        setActiveRoomId(roomId);
-        socket.emit("joinRoom", roomId);
-      } catch (error) {
-        console.log(`Room creation failed:`, error.message);
-        return;
-      }
-    }
-
-    //emit message to socket
-    const message = {
-      roomId,
-      sender: myUserId,
-      content: messageInput,
-      timestamp: new Date().toISOString(),
-    };
-
-    socket.emit("chatMessage", message);
-
-    //optimistically update local message list
-    setMessages((prev) => [...prev, message]);
-    setMessageInput("");
   };
 
   return (
@@ -254,81 +208,10 @@ const Chat = ({ userName, setUserName }) => {
 
         {/* Right Column:Chat UI - 70% width */}
         <Box sx={{ width: "70%" }}>
-          <Paper
-            elevation={3}
-            sx={{ height: "100%", display: "flex", flexDirection: "column" }}
-          >
-            {selectedUser ? (
-              <>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 2,
-                    p: 2,
-                    borderBottom: "1px solid #ddd",
-                  }}
-                >
-                  <Avatar>
-                    {selectedUser.userName.charAt(0).toUpperCase()}
-                  </Avatar>
-                  <Typography variant="h6">{selectedUser.userName}</Typography>
-                </Box>
-
-                <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
-                  {messages.length > 0 ? (
-                    messages.map((msg, idx) => (
-                      <Typography key={idx} variant="body2" gutterBottom>
-                        <strong>
-                          {msg.sender ===
-                          onlineUsers.find((u) => u.userName === userName)
-                            ?.userId
-                            ? "Me"
-                            : selectedUser.userName}
-                          :
-                        </strong>{" "}
-                        {msg.content}
-                      </Typography>
-                    ))
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">
-                      Start chatting with {selectedUser.userName}
-                    </Typography>
-                  )}
-                  <div ref={messagesEndRef}></div>
-                </Box>
-
-                <Box
-                  sx={{
-                    display: "flex",
-                    gap: 2,
-                    p: 2,
-                    borderTop: "1px solid #ddd",
-                  }}
-                >
-                  <TextField
-                    fullWidth
-                    multiline
-                    placeholder="Type your message..."
-                    value={messageInput}
-                    onChange={(e) => setMessageInput(e.target.value)}
-                  ></TextField>
-                  <IconButton color="primary" onClick={handleSendMessage}>
-                    <Send />
-                  </IconButton>
-                </Box>
-              </>
-            ) : (
-              <Box
-                sx={{ height: "100%" }}
-                className="d-flex justify-content-center align-items-center"
-              >
-                <Typography variant="body1" color="text.secondary">
-                  Select a user to start chatting
-                </Typography>
-              </Box>
-            )}
-          </Paper>
+          <RightChatUI
+            userName={userName}
+            setUserName={setUserName}
+          ></RightChatUI>
         </Box>
       </Box>
     </>

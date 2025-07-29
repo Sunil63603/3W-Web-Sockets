@@ -33,6 +33,7 @@ export const findExistingRoom = async (req, res) => {
 export const createRoom = async (req, res) => {
   try {
     const { participants } = req.body;
+    console.log(participants);
 
     //expect exactly 2 userIds
     if (!Array.isArray(participants) || participants.length !== 2) {
@@ -69,5 +70,22 @@ export const getAllRooms = async (req, res) => {
   } catch (error) {
     console.error(`Error fetching rooms:`, error.message);
     return res.status(500).json({ message: `Server Error` });
+  }
+};
+
+//controller to fetch one room by ID.
+export const getRoomById = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const room = await Room.findById(roomId);
+
+    if (!room) {
+      return res.status(404).json({ message: `Room not found` });
+    }
+
+    return res.status(200).json(room);
+  } catch (error) {
+    console.error(`Error getting room by ID:`, error.message);
+    return res.status(500).json({ message: `Server error` });
   }
 };

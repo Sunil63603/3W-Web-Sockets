@@ -14,6 +14,7 @@ import initializeSocket from "./socket/socketServer.js";
 
 //route imports
 import roomRoutes from "./routes/roomRoutes.js"; //Room-related API routes
+import messageRoutes from "./routes/messageRoutes.js";
 
 //Load environment variables from .env file
 dotenv.config();
@@ -39,6 +40,7 @@ connectDB();
 
 //Register room-related API endpoints.
 app.use("/api/rooms", roomRoutes);
+app.use("/api/messages", messageRoutes);
 
 //Create HTTP server and attach Express app to it.
 const httpServer = http.createServer(app);

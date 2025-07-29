@@ -5,7 +5,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 
 //MUI imports
-import { Box, Paper, Typography, Stack, Avatar } from "@mui/material";
+import { Box, Paper, Typography, Stack, Avatar, Snackbar } from "@mui/material";
 
 //socket import
 import { socket } from "../socket.js";
@@ -19,8 +19,11 @@ const AllRoomsList = () => {
   //state to store list of all rooms from backend
   const [rooms, setRooms] = useState([]);
 
+  //snackbar state
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+
   //access gloal chat context for active room and online users
-  const { onlineUsers, setActiveRoomId } = useChat();
+  const { onlineUsers, setActiveRoomId, setMessages } = useChat();
 
   //fetch rooms from backend when component mounts
   useEffect(() => {
@@ -36,8 +39,16 @@ const AllRoomsList = () => {
     fetchRooms();
   }, []);
 
+  //Listen to join confirmation from backend
+  useEffect(() => {
+    socket.on("room:joined", () => {
+      setOpenSnackbar(true);
+    });
+    return () => socket.off("room:joined");
+  }, []);
+
   //called when user clicks a room.
-  const handleRoomClick = (room) => {
+  const handleRoomClick = async (room) => {
     const myUserName = localStorage.getItem("userName"); //get current userName from localStorage.
     if (!myUserName) return;
 
@@ -47,11 +58,20 @@ const AllRoomsList = () => {
     //Emit joinRoom socket event with necessary data
     socket.emit("joinRoom", {
       roomId: room._id,
-      myUserId,
+      userId: myUserId,
       isGroup: room.isGroup,
     });
 
     setActiveRoomId(room._id);
+
+    //fetch messages of current room and update 'messages'(in context using setMessages).
+    try {
+      const res = await axios.get(`${BACKEND_URL}/api/messages/${room._id}`);
+      setMessages(res.data);
+      console.log(res.data);
+    } catch (err) {
+      console.error(`Failed to fetch messages:`, err.message);
+    }
   };
 
   return (
@@ -88,6 +108,14 @@ const AllRoomsList = () => {
           </Paper>
         ))}
       </Stack>
+
+      {/* Snackbar for confirmation */}
+      <Snackbar
+        open={openSnackbar}
+        autoHideDuration={3000}
+        onClose={() => setOpenSnackbar(false)}
+        message="joined room successfuly"
+      ></Snackbar>
     </Box>
   );
 };

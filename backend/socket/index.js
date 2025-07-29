@@ -1,5 +1,6 @@
 import User from "../models/User.js"; //Import User model to interact with DB.
 import Room from "../models/Room.js";
+import Message from "../models/Message.js";
 
 //In-memory map to store online users:userId -> socketId.
 //stored in RAM allow for faster lookup and updates.
@@ -87,15 +88,49 @@ const socketHandler = (io) => {
 
         //If user already in participants, do not modify DB.
         if (room.participants.includes(userId)) {
-          socket.emit("room:joined", { roomId, message: "Already joined" });
+          socket.emit("room:joined", {
+            roomId,
+            message: "Already joined",
+            room,
+          });
         } else {
           //Otherwise, add user to participants and save
           room.participants.push(userId);
           await room.save();
-          socket.emit("room:joined", { roomId, message: "Join failed" });
+
+          // fetch the updated room details
+          const updatedRoom = await Room.findById(roomId);
+          socket.emit("room:joined", {
+            roomId,
+            message: "Join failed",
+            room: updatedRoom,
+          });
         }
       } catch (error) {
         socket.emit("room:joined", { roomId, message: "Join failed" });
+      }
+    });
+
+    //handle incoming chat message.
+    socket.on("chatMessage", async ({ roomId, sender, content, timestamp }) => {
+      try {
+        //create and save message in DB.
+        const message = new Message({
+          roomId,
+          sender,
+          content,
+          timestamp,
+        });
+
+        const savedMessage = await message.save();
+
+        //populate sender field with userName only.
+        await savedMessage.populate("sender", "userName");
+
+        //emit message to all in that room
+        io.to(roomId).emit("chatMessage", savedMessage);
+      } catch (err) {
+        console.error(`Error handling chatMessage:`, err.message);
       }
     });
 
