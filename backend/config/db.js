@@ -7,10 +7,7 @@ dotenv.config(); //Load environment variables from .env file
 const connectToDB = async () => {
   try {
     //connect using MONGO_URI from .env
-    await mongoose.connect(process.env.MONGO_URI, {
-      useNewUrlParser: true, //Use new URL string parser
-      useUnifiedTopology: true, //use new server discovery and monitoring engine
-    });
+    await mongoose.connect(process.env.MONGO_URI);
     console.log(`✅MongoDB connected successfully`);
   } catch (error) {
     console.error(`❌MongoDB connection error:`, error.message);
