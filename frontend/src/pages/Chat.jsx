@@ -1,6 +1,6 @@
 //React imports
-import React, { useRef, useEffect } from "react"; //useEffect-whenever userName changes-->connect to socket-->emit register event-->disconnect socket
-import { useNavigate } from "react-router-dom"; //on log-out, redirect user back to login page
+import { useEffect, useState } from "react"; //useEffect-whenever userName changes-->connect to socket-->emit register event-->on logout disconnect socket.
+import { useNavigate } from "react-router-dom"; //on log-out, redirect user back to login page.
 
 //MUI imports
 import {
@@ -15,30 +15,35 @@ import {
   MenuItem,
   Avatar,
   Stack,
-  TextField,
-  IconButton,
   Paper,
+  Snackbar,
 } from "@mui/material";
 
 //socket.io-client instance from socket.js file
-import { socket } from "../socket.js";
+import { socket } from "../socket.js"; //server URL
+//provides methods like connect,on,emit,off,disconnect
 
+//for API requests
 import axios from "axios";
 
 //component imports
-import AllRoomsList from "../components/AllRoomsList.jsx";
+import AllRoomsList from "../components/AllRoomsList.jsx"; //left column
+import { RightChatUI } from "../components/RightChatUI.jsx"; //right column
 
 //context imports
 import { useChat } from "../context/ChatContext.js";
-import { RightChatUI } from "../components/RightChatUI.jsx";
 
+//used to fetch existing rooms for Backend.
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
-//❌receives userName from App.js. Move this to context.
 const Chat = ({ userName, setUserName }) => {
+  //used to display notifications
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+
   const navigate = useNavigate(); //navigate back to login-page on clicking log-out button
 
   const {
+    setMyUserId,
     onlineUsers,
     setOnlineUsers,
     selectedUserId,
@@ -47,19 +52,20 @@ const Chat = ({ userName, setUserName }) => {
     setActiveRoomId,
     setMessages,
     setMessageInput,
-    roomDetails,
     setRoomDetails,
   } = useChat();
 
+  //executes when userName changes
   useEffect(() => {
     //connect to socket server
     if (!socket.connected) {
-      socket.connect();
+      socket.connect(); //while using web-sockets, connect with socket server
     }
 
     //Emit "register" with userName once connected.
     socket.emit("register", { userName });
-    //backend can identify the user, update their socketId and track them as online
+    //backend can identify the user, update their socketId(null-->generated socketId) and track them as online
+    //And backend will emit "registered" event after successful login
 
     //Listen for onlineUsers event(updated onlineUsers)
     socket.on("onlineUsers", (userList) => {
@@ -73,6 +79,24 @@ const Chat = ({ userName, setUserName }) => {
     };
   }, [userName]); //when userName changes
 
+  //Listen to login confirmation from backend
+  useEffect(() => {
+    socket.on("registered", (userId, userName) => {
+      setOpenSnackbar(true); //use MUI toast notification component
+    });
+
+    //Get current user's userId from onlineUsers List.
+    //this 'myUserId' is used in many files, so store this in context
+    const myUserId = onlineUsers.find((u) => {
+      console.log(u.userName, typeof u.userName);
+      console.log(userName, typeof userName);
+      return u.userName === userName;
+    })?.userId;
+    setMyUserId(myUserId);
+
+    return () => socket.off("registered");
+  }, []);
+
   //Logout handler:clear storage,disconnect socket,redirect
   const handleLogout = () => {
     localStorage.removeItem("userName"); //clear userName.
@@ -84,28 +108,38 @@ const Chat = ({ userName, setUserName }) => {
   //handle selecting a user from active online users dropdown.
   const handleSelectUser = async (targetUserId) => {
     setSelectedUserId(targetUserId); //update local state for dropdown.
+
+    //clear details of previously selected room(group)
     setRoomDetails(null);
 
     //Find full user Object from online users List.
     const user = onlineUsers.find((u) => u.userId === targetUserId);
     setSelectedUser(user); //save selected user for UI rendering.
 
+    //Get current user's userId from onlineUsers List.
+    //this 'myUserId' is used in many files, so store this in context
+    const myUserId = onlineUsers.find((u) => {
+      return u.userName === userName;
+    })?.userId;
+
     setMessages([]); //clear messages[] from any previous selected chat room.
     setMessageInput("");
 
     try {
-      //Get current user's userId from onlineUsers List.
-      const myUserId = onlineUsers.find((u) => u.userName === userName)?.userId;
-
       //call backend to check if room already exists between current user and selected user.
       const res = await axios.get(`${BACKEND_URL}/api/rooms/existing`, {
         params: { user1: myUserId, user2: targetUserId },
       });
+      //404 error if theres no existing room
 
       //if room exists, store roomId and emit joinRoom event to backend.
       if (res.data?.roomId) {
         setActiveRoomId(res.data.roomId);
-        socket.emit("joinRoom", res.data.roomId);
+        socket.emit("joinRoom", {
+          roomId: res.data.roomId,
+          userId: myUserId,
+          isGroup: false,
+        });
 
         //fetch message history
         const msgRes = await axios.get(
@@ -124,6 +158,14 @@ const Chat = ({ userName, setUserName }) => {
 
   return (
     <>
+      {/* Snackbar for confirmation */}
+      <Snackbar
+        open={openSnackbar}
+        autoHideDuration={3000}
+        onClose={() => setOpenSnackbar(false)}
+        message="Log In Successful"
+      ></Snackbar>
+
       {/* Top AppBar with Logout */}
       <AppBar position="static" color="primary">
         <Toolbar className="d-flex justify-content-between">

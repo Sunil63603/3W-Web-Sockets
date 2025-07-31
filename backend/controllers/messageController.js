@@ -7,8 +7,8 @@ export const getMessagesByRoomId = async (req, res) => {
 
     //find all messages for that room sorted by timestamp
     const messages = await Message.find({ roomId })
-      .populate("sender", "userName")
-      .sort({ timestamp: 1 });
+      .populate("sender", "userName") //while displaying messages in UI, display 'sender name' along with userName
+      .sort({ timestamp: 1 }); //ascneding order
 
     return res.status(200).json(messages);
   } catch (error) {

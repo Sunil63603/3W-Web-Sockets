@@ -8,7 +8,7 @@ export const findExistingRoom = async (req, res) => {
     //Validate required parameters
     if (!user1 || !user2) {
       return res
-        .status(400)
+        .status(400) //BAD request
         .json({ message: `Both user1 and user2 are required` });
     }
 
@@ -19,7 +19,7 @@ export const findExistingRoom = async (req, res) => {
     });
 
     if (existingRoom) {
-      return res.status(200).json({ roomId: existingRoom._id });
+      return res.status(200).json({ roomId: existingRoom._id }); //this 'Id' is used to joinRoom, fetch existing messages and store latest messages
     } else {
       return res.status(404).json({ message: "No existing room found" });
     }

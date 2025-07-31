@@ -7,6 +7,7 @@ import {
   Navigate,
 } from "react-router-dom";
 
+//page imports
 import Login from "./pages/Login.jsx";
 import Chat from "./pages/Chat.jsx";
 
@@ -14,20 +15,21 @@ import Chat from "./pages/Chat.jsx";
 import { ChatProvider } from "./context/ChatContext.js";
 
 const App = () => {
+  //Its not possible to use variables from context.So, i am creating local state variable
   const [userName, setUserName] = useState(""); //store logged-in userName
 
   //load userName from localStorage if available
   useEffect(() => {
     const stored = localStorage.getItem("userName");
-    if (stored) setUserName(stored);
+    if (stored) setUserName(stored); //update local state variable.
     else setUserName("");
-  }, []);
+  }, []); //runs on initial load
 
   return (
     <ChatProvider>
       <Router>
         <Routes>
-          {/*Redirect / to /login  */}
+          {/*Redirect '/' to '/login'  */}
           <Route path="/" element={<Navigate to="/login" replace />} />
 
           {/* Login page:only show if not already logged in */}

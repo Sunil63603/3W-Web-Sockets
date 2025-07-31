@@ -4,6 +4,8 @@ import React, { createContext, useContext, useState } from "react";
 const ChatContext = createContext();
 
 export const ChatProvider = ({ children }) => {
+  const [userName, setUserName] = useState("");
+  const [myUserId, setMyUserId] = useState("");
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
@@ -15,6 +17,10 @@ export const ChatProvider = ({ children }) => {
   return (
     <ChatContext.Provider
       value={{
+        myUserId,
+        setMyUserId,
+        userName,
+        setUserName,
         onlineUsers,
         setOnlineUsers,
         selectedUserId,

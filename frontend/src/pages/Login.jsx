@@ -1,6 +1,6 @@
 //React imports
-import React, { useState } from "react"; //to store userName from input(ie, controlled element)
-import { useNavigate } from "react-router-dom"; //redirect to 'chat interface' on successful login
+import { useState } from "react"; //to store userName(inputName) from input(ie, controlled element)
+import { useNavigate } from "react-router-dom"; //redirect to 'chat interface' on successful login.
 
 //MUI imports
 import { TextField, Button, Container, Typography, Box } from "@mui/material";
@@ -8,7 +8,6 @@ import { TextField, Button, Container, Typography, Box } from "@mui/material";
 //Bootstrap imports
 import "bootstrap/dist/css/bootstrap.min.css";
 
-//❌why is this component receiving this 'setUserName'. Where is it receiving from? why not contextAPI ?
 const Login = ({ setUserName }) => {
   const [inputName, setInputName] = useState(""); //store form input.
   const navigate = useNavigate(); //for navigation
@@ -20,7 +19,7 @@ const Login = ({ setUserName }) => {
     localStorage.setItem("userName", inputName);
     setUserName(inputName);
 
-    //Navigate to chat page(socket connect + register will be done there).
+    //Navigate to chat page(socket connect + user registration will be done there).
     navigate("/chat");
   };
 

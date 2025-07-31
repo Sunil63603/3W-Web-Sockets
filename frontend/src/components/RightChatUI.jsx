@@ -33,8 +33,12 @@ export const RightChatUI = ({ userName, setUserName }) => {
 
   const [openDialog, setOpenDialog] = useState(false);
   const [roomOnlineUsers, setRoomOnlineUsers] = useState([]);
+  const [isTyping, setIsTyping] = useState(false);
+  let typingTimeout = null; //for delay
 
   const {
+    myUserId,
+    setMyUserId,
     onlineUsers,
     selectedUserId,
     selectedUser,
@@ -90,11 +94,39 @@ export const RightChatUI = ({ userName, setUserName }) => {
     return () => socket.off("room:joined", handleRoomJoined);
   }, [setRoomDetails]);
 
+  //Listen for typing events
+  useEffect(() => {
+    socket.on("displayTyping", ({ roomId }) => {
+      if (roomId === activeRoomId) setIsTyping(true);
+    });
+
+    socket.on("hideTyping", ({ roomId }) => {
+      if (roomId === activeRoomId) setIsTyping(false);
+    });
+
+    return () => {
+      socket.off("displayTyping");
+      socket.off("hideTyping");
+    };
+  }, [activeRoomId]);
+
+  //reset isTyping after room switch or after sending message
+  useEffect(() => {
+    setIsTyping(false); //on room switch
+  }, [activeRoomId]);
+
   const handleOneOneSendMessage = async () => {
     if (!messageInput.trim()) return;
 
     let roomId = activeRoomId;
-    const myUserId = onlineUsers.find((u) => u.userName === userName)?.userId;
+    console.log(onlineUsers);
+
+    const myUserId = onlineUsers.find((u) => {
+      console.log(u.userName, typeof u.userName);
+      console.log(userName, typeof userName);
+      return u.userName === userName;
+    })?.userId;
+    setMyUserId(myUserId);
 
     //Create room if it doesnt exist yet.
     if (!roomId) {
@@ -141,6 +173,7 @@ export const RightChatUI = ({ userName, setUserName }) => {
     };
 
     socket.emit("chatMessage", messageData);
+    setIsTyping(false);
     setMessageInput("");
   };
 
@@ -253,6 +286,14 @@ export const RightChatUI = ({ userName, setUserName }) => {
                   No messages yet
                 </Typography>
               )}
+              {isTyping && (
+                <Typography
+                  variant="caption"
+                  sx={{ fontStyle: "italic", color: "gray", mb: 1 }}
+                >
+                  typing...
+                </Typography>
+              )}
             </Box>
 
             <Box
@@ -268,7 +309,22 @@ export const RightChatUI = ({ userName, setUserName }) => {
                 multiline
                 placeholder="Type your message..."
                 value={messageInput}
-                onChange={(e) => setMessageInput(e.target.value)}
+                onChange={(e) => {
+                  setMessageInput(e.target.value);
+
+                  const userName = localStorage.getItem("userName");
+
+                  if (!userName) return;
+                  socket.emit("typing", {
+                    roomId: activeRoomId,
+                    userName: userName,
+                  });
+
+                  if (typingTimeout) clearTimeout(typingTimeout);
+                  typingTimeout = setTimeout(() => {
+                    socket.emit("stopTyping", { roomId: activeRoomId });
+                  }, 1500);
+                }}
               />
               <IconButton color="primary" onClick={handleGrpSendMsg}>
                 <Send />

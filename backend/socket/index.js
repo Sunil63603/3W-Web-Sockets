@@ -2,25 +2,31 @@ import User from "../models/User.js"; //Import User model to interact with DB.
 import Room from "../models/Room.js";
 import Message from "../models/Message.js";
 
-//In-memory map to store online users:userId -> socketId.
+//In-memory map to store online users (userId -> socketId).
 //stored in RAM allow for faster lookup and updates.
 //This allows us to send private messages or typing indicators to specific users
 const onlineUsers = new Map();
 
-//function to handle all socket.io events (used in socketServer.js)
+//function to handle all socket.io events
+// imported and used in socketServer.js)
 const socketHandler = (io) => {
-  //Run on every new socket connection.
+  //'io' is socker server
+
+  //Run on every new socket connection or
+  //runs when socket.connect() is executed
   io.on("connection", (socket) => {
     console.log(`New socket connected:${socket.id}`);
 
-    //REGISTER EVENT - Sent by client after successfu login
+    //REGISTER EVENT - Sent by client after successful login
     socket.on("register", async ({ userName }) => {
+      //'userName' is sent from 'Chatjsx'
       try {
         let user = await User.findOne({ userName }); //findOne will return only first user matching this userName in DB
 
         if (user) {
           //✅User exists:update socketId.
-          user.socketId = socket.id;
+          user.socketId = socket.id; //socketId will be 'null' store some ID there
+
           await user.save();
         } else {
           //❌ User doesnot exist:create new
@@ -32,13 +38,14 @@ const socketHandler = (io) => {
         }
 
         //Save userId on socket instance for use during disconnect.
-        socket.data.userId = user._id.toString();
+        socket.data.userId = user._id.toString(); //ObjectId to string
 
         //Store userId->socketId mapping in memory
         onlineUsers.set(user._id.toString(), socket.id);
+        //'set()' is used to add new entry into map
 
         //Debug:print current online user map
-        console.log(`Online Users Map:`);
+        console.log(`Online Users Map:Included new connection`);
         for (const [userId, sockId] of onlineUsers.entries()) {
           console.log(`${userId}->${sockId}`);
         }
@@ -55,7 +62,7 @@ const socketHandler = (io) => {
         for (const [userId, sockId] of onlineUsers.entries()) {
           //'u' because to avoid naming conflict with 'user' variable.
           const u = await User.findById(userId);
-          if (u) onlineUserList.push({ userId, userName: u.userName });
+          if (u) onlineUserList.push({ userId, userName: u.userName }); //From Map to array
         }
 
         //io.emit()-send to all connected clients(not just currentUser)
@@ -102,7 +109,7 @@ const socketHandler = (io) => {
           const updatedRoom = await Room.findById(roomId);
           socket.emit("room:joined", {
             roomId,
-            message: "Join failed",
+            message: "Joined Room",
             room: updatedRoom,
           });
         }
@@ -134,6 +141,16 @@ const socketHandler = (io) => {
       }
     });
 
+    socket.on("typing", ({ roomId, userName }) => {
+      //broadcast to other users in the room
+      socket.to(roomId).emit("displayTyping", { roomId, userName });
+    });
+
+    socket.on("stopTyping", ({ roomId }) => {
+      //broadcast to others in room to hide typing.
+      socket.to(roomId).emit("hideTyping", { roomId });
+    });
+
     //DISCONNECT EVENT - called when socket connection closes
     socket.on("disconnect", async () => {
       const userId = socket.data.userId; //Retrieve  userId saved earlier while user logged-in(REGISTER event).
@@ -149,7 +166,7 @@ const socketHandler = (io) => {
       await User.findByIdAndUpdate(userId, { socketId: null });
 
       //Broadcast updated online users list to all clients
-      const onlineUserList = [];
+      let onlineUserList = [];
       for (const [userId, sockId] of onlineUsers.entries()) {
         //'u' because to avoid naming conflict with 'user' variable.
         const u = await User.findById(userId);
@@ -160,8 +177,8 @@ const socketHandler = (io) => {
       io.emit("onlineUsers", onlineUserList);
       //use socket.broadcast.emit()-send to all clients except sender.
 
-      //Debug lo after disconnect
-      console.log(`Updated Online Users Map:`);
+      //Debug log after disconnect
+      console.log(`Updated Online Users Map:Removed One connection`);
       for (const [id, sock] of onlineUsers.entries()) {
         console.log(`${id}->${sock}`);
       }
