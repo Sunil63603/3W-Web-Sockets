@@ -1,17 +1,28 @@
 //react imports
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 //axios imports
 import axios from "axios";
 
 //MUI imports
-import { Box, Paper, Typography, Stack, Avatar, Snackbar } from "@mui/material";
+import {
+  Box,
+  Paper,
+  Typography,
+  Stack,
+  Avatar,
+  Snackbar,
+  Button,
+} from "@mui/material";
 
 //socket import
 import { socket } from "../socket.js";
 
 //context import
 import { useChat } from "../context/ChatContext.js";
+
+//component imports
+import CreateRoom from "./CreateRoom.jsx";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -22,12 +33,20 @@ const AllRoomsList = () => {
   //snackbar state
   const [openSnackbar, setOpenSnackbar] = useState(false);
 
+  const [openModal, setOpenModal] = useState(false); //createGroup modal
+
   //access gloal chat context for active room and online users
   const { onlineUsers, setActiveRoomId, setMessages } = useChat();
 
+  //Get current user ID from context.
+  const currentUserId = onlineUsers.find(
+    (u) => u.userName === localStorage.getItem("userName")
+  )?.userId;
+
   //fetch rooms from backend when component mounts
+  let fetchRooms;
   useEffect(() => {
-    const fetchRooms = async () => {
+    fetchRooms = async () => {
       try {
         const res = await axios.get(`${BACKEND_URL}/api/rooms/all`);
         setRooms(res.data); //Update local state with fetched rooms
@@ -44,7 +63,15 @@ const AllRoomsList = () => {
     socket.on("room:joined", () => {
       setOpenSnackbar(true);
     });
-    return () => socket.off("room:joined");
+    socket.on("roomCreated", ({ roomId, participants }) => {
+      console.log(participants);
+      fetchRooms();
+    }); //re-fetch rooms when new room is created.
+
+    return () => {
+      socket.off("room:joined");
+      socket.off("roomCreated");
+    };
   }, []);
 
   //called when user clicks a room.
@@ -76,6 +103,19 @@ const AllRoomsList = () => {
 
   return (
     <Box>
+      <Box className="d-flex justify-content-between align-items-center">
+        <Typography variant="h6" gutterBottom>
+          Chats
+        </Typography>
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={() => setOpenModal(true)}
+        >
+          Create Room
+        </Button>
+      </Box>
+
       {/* Loop through all rooms and render each as a chat card */}
       <Stack spacing={2}>
         {rooms.map((room) => (
@@ -116,6 +156,14 @@ const AllRoomsList = () => {
         onClose={() => setOpenSnackbar(false)}
         message="joined room successfuly"
       ></Snackbar>
+
+      {/* Modal for creating group room */}
+      <CreateRoom
+        open={openModal}
+        onClose={() => setOpenModal(false)}
+        currentUserId={currentUserId}
+        socket={socket}
+      ></CreateRoom>
     </Box>
   );
 };

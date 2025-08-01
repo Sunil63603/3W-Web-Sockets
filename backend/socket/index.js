@@ -118,6 +118,11 @@ const socketHandler = (io) => {
       }
     });
 
+    socket.on("roomCreated", ({ roomId, participants }) => {
+      //Broadcast to all clients
+      io.emit("roomCreated", { roomId, participants });
+    });
+
     //handle incoming chat message.
     socket.on("chatMessage", async ({ roomId, sender, content, timestamp }) => {
       try {

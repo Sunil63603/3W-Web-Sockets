@@ -89,3 +89,27 @@ export const getRoomById = async (req, res) => {
     return res.status(500).json({ message: `Server error` });
   }
 };
+
+//create group room.
+export const createGroupRoom = async (req, res) => {
+  try {
+    const { isGroup, grpName, participants, lastActivityAt } = req.body;
+
+    if (!isGroup || !grpName || !participants?.length) {
+      return res.status(400).json({ message: `Missing required group fields` });
+    }
+
+    const room = new Room({
+      isGroup,
+      grpName,
+      participants,
+      lastActivityAt: lastActivityAt || Date.now(),
+    });
+
+    await room.save();
+    return res.status(201).json({ roomId: room._id });
+  } catch (error) {
+    console.error(`Group room creation error:`, error.message);
+    return res.status(500).json({ message: "Server error" });
+  }
+};

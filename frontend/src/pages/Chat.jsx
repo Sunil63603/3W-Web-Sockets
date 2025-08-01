@@ -240,7 +240,6 @@ const Chat = ({ userName, setUserName }) => {
               flexDirection: "column",
             }}
           >
-            <Typography variant="h6">Chats</Typography>
             {/* Scrollable AllRoomsList */}
             <Box sx={{ flex: 1, overflowY: "auto", mt: 2 }}>
               <AllRoomsList></AllRoomsList>
