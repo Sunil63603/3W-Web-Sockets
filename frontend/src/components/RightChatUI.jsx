@@ -115,6 +115,21 @@ export const RightChatUI = ({ userName, setUserName }) => {
     setIsTyping(false); //on room switch
   }, [activeRoomId]);
 
+  const handleMessageInputChange = (e) => {
+    setMessageInput(e.target.value);
+
+    //emit typing event for 1-1 chat.
+    if (activeRoomId && selectedUser) {
+      socket.emit("typing", { roomId: activeRoomId, userName });
+
+      //clear previous timeout
+      if (typingTimeout) clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(() => {
+        socket.emit("stopTyping", { roomId: activeRoomId });
+      }, 2500);
+    }
+  };
+
   const handleOneOneSendMessage = async () => {
     if (!messageInput.trim()) return;
 
@@ -122,8 +137,6 @@ export const RightChatUI = ({ userName, setUserName }) => {
     console.log(onlineUsers);
 
     const myUserId = onlineUsers.find((u) => {
-      console.log(u.userName, typeof u.userName);
-      console.log(userName, typeof userName);
       return u.userName === userName;
     })?.userId;
     setMyUserId(myUserId);
@@ -142,6 +155,9 @@ export const RightChatUI = ({ userName, setUserName }) => {
         return;
       }
     }
+
+    //emit stopTyping before sending
+    socket.emit("stopTyping", { roomId });
 
     //emit message to socket
     const message = {
