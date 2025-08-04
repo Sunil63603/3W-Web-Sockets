@@ -79,7 +79,7 @@ const CreateRoom = ({ open, onClose, currentUserId, socket }) => {
 
       //Emit to all participants
       socket.emit("roomCreated", { roomId, participants });
-      onClose;
+      onClose();
     } catch (error) {
       console.error(`Group room creation failed:`, error.message);
     }
